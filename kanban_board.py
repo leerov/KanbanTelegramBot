@@ -19,12 +19,14 @@ class KanbanBoard:
             "Проверка": [],
             "Готово": []
         }
+        self.task_counter = 0  # Счетчик для уникальных ID задач
 
     def add_task(self, text, creator):
-        task_id = len(self.columns['To Do']) + len(self.columns['In Progress']) + len(self.columns['Done']) + 1
-        task = Task(text, task_id, creator)
-        self.columns['To Do'].append(task)
-        return task_id
+        self.task_counter += 1  # Увеличиваем счетчик при добавлении новой задачи
+        task = Task(text, self.task_counter, creator)
+        self.columns['Идеи'].append(task)
+        return self.task_counter
+
 
     def move_task(self, task_id, from_column, to_column):
         task = self.get_task_by_id(task_id)
