@@ -1,5 +1,3 @@
-# kanban_board.py
-
 class Task:
     def __init__(self, text, id, creator, executors=None, reviewers=None):
         self.text = text

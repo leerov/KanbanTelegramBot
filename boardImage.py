@@ -1,13 +1,8 @@
 import os, io
 from PIL import Image, ImageDraw, ImageFont
-from kanban_board import KanbanBoard
+from classes import KanbanBoard
+from boardImageColors import *
 
-BACKGROUND_COLOR = (34, 34, 34)
-COLUMN_NAME_COLOR = (200, 200, 200)
-TASK_TEXT_COLOR = (255, 255, 255)
-CARD_BACKGROUND_COLOR = (47, 79, 79)
-CARD_BORDER_COLOR = (100, 149, 237)
-COLUMN_DIVIDER_COLOR = (255, 255, 255)
 
 def create_board_image(board: KanbanBoard) -> str:
     font_path = 'fonts/DejaVuSans.ttf'

@@ -1,8 +1,8 @@
 import telebot
 from telebot import types
 from config import BOT_TOKEN, BOARD_PATH
-from kanban_board import KanbanBoard, Task
-from utils import create_board_image
+from classes import KanbanBoard, Task
+from boardImage import create_board_image
 import json
 import os
 
@@ -172,6 +172,3 @@ def add_task(message, chat_id):
     boards[chat_id].add_task(text, message.from_user.id)
     save_board(chat_id, boards[chat_id])  # Сохраняем после добавления задачи
     bot.send_message(chat_id, f"Задача '{text}' добавлена.")
-
-if __name__ == "__main__":
-    bot.polling(none_stop=True)
