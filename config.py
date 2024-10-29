@@ -1,5 +1,5 @@
 # config.py
 
-BOT_TOKEN = '''
+BOT_TOKEN = ''
 BOARD_PATH = 'boards/'
 

@@ -1,3 +1,4 @@
+__pycache__
+boards/*.json
+boards/*.png
 config.py
-__pycache__/*
-

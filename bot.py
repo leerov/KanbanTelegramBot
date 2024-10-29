@@ -42,12 +42,13 @@ def show_board_handler(message):
         if chat_id in messages:
             bot.delete_message(chat_id, messages[chat_id])
 
-        board_image_path = create_board_image(boards[chat_id])
-        with open(board_image_path, 'rb') as img:
-            msg = bot.send_photo(chat_id, img)
-            messages[chat_id] = msg.message_id
     else:
         bot.send_message(message.chat.id, "Доска для этого чата еще не создана. Отправьте команду /start.")
+"""         board_image_path = create_board_image(boards[chat_id])
+        with open(board_image_path, 'rb') as img:
+            msg = bot.send_photo(chat_id, img)
+            messages[chat_id] = msg.message_id 
+            """
 
 @bot.message_handler(func=lambda message: message.text == "Переместить задачу")
 def move_task_command(message):
@@ -128,13 +129,21 @@ def move_selected_task(message, task, old_column_name):
     else:
         bot.send_message(chat_id, "Ошибка: Неверная колонка.")
 
-@bot.message_handler(commands=['add_task'])
+@bot.message_handler(func=lambda message: message.text == "Добавить задачу")
 def add_task_command(message):
-    # Логика добавления задачи (например, с помощью текстового сообщения)
-    pass
+    chat_id = message.chat.id
+    if chat_id in boards:
+        bot.send_message(chat_id, "Введите текст новой задачи:")
+        bot.register_next_step_handler(message, lambda msg: add_task(msg, chat_id))
+    else:
+        bot.send_message(chat_id, "Доска для этого чата еще не создана. Отправьте команду /start.")
 
+def add_task(message, chat_id):
+    text = message.text
+    boards[chat_id].add_task(text, message.from_user.id)
+    save_board(chat_id, boards[chat_id])
+    bot.send_message(chat_id, f"Задача '{text}' добавлена.")
 # Остальные обработчики остаются без изменений
 
 if __name__ == "__main__":
     bot.polling(none_stop=True)
-
