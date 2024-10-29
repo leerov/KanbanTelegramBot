@@ -1,11 +1,9 @@
 # kanban_board.py
 
-import json
-
 class Task:
-    def __init__(self, text, task_id, creator, executors=None, reviewers=None):
+    def __init__(self, text, id, creator, executors=None, reviewers=None):
         self.text = text
-        self.id = task_id
+        self.id = id
         self.creator = creator
         self.executors = executors if executors else []
         self.reviewers = reviewers if reviewers else []
@@ -19,29 +17,32 @@ class KanbanBoard:
             "Проверка": [],
             "Готово": []
         }
-        self.task_counter = 0  # Счетчик для уникальных ID задач
+        self.task_counter = 0
 
     def add_task(self, text, creator):
-        self.task_counter += 1  # Увеличиваем счетчик при добавлении новой задачи
-        task = Task(text, self.task_counter, creator)
+        """Добавляет новую задачу с уникальным ID в колонку 'Идеи'."""
+        self.task_counter += 1
+        task = Task(text=text, id=self.task_counter, creator=creator)
         self.columns['Идеи'].append(task)
-        return self.task_counter
+        return task.id
 
-
-    def move_task(self, task_id, from_column, to_column):
-        task = self.get_task_by_id(task_id)
+    def move_task(self, id, from_column, to_column):
+        """Перемещает задачу с указанным ID из одной колонки в другую."""
+        task = self.get_task_by_id(id)
         if task:
             self.columns[from_column].remove(task)
             self.columns[to_column].append(task)
 
-    def get_task_by_id(self, task_id):
+    def get_task_by_id(self, id):
+        """Возвращает задачу по ее уникальному ID."""
         for column in self.columns.values():
             for task in column:
-                if task.id == task_id:
+                if task.id == id:
                     return task
         return None
 
     def display_board(self):
+        """Возвращает текстовое представление всех задач на доске."""
         board_str = ""
         for column_name, tasks in self.columns.items():
             board_str += f"{column_name}:\n"
@@ -49,4 +50,3 @@ class KanbanBoard:
                 board_str += f"- {task.id}: {task.text} (Creator: {task.creator})\n"
             board_str += "\n"
         return board_str
-
