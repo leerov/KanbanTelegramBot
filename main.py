@@ -3,12 +3,14 @@ from telebot import types
 from config import BOT_TOKEN, BOARD_PATH
 from classes import KanbanBoard, Task
 from boardImage import create_board_image
+import states
 import json
 import os
 
 bot = telebot.TeleBot(BOT_TOKEN)
 boards = {}
 messages = {}
+user_states = {}
 
 def load_board(chat_id):
     """Загружает доску пользователя из JSON-файла или создает новую, если файла нет."""
@@ -18,14 +20,14 @@ def load_board(chat_id):
 
     with open(board_path, 'r', encoding='utf-8') as file:
         data = json.load(file)
-    
+
     board = KanbanBoard()
     board.columns = {
         column_name: [
             Task(
                 id=task.get('id', board.task_counter + 1),  # Генерация id, если его нет
-                text=task['text'],  # Предположим, что текст задачи хранится под ключом 'text'
-                creator=task.get('creator')  # Если есть creator_id
+                text=task['text'],
+                creator=task.get('creator')
             )
             for task in tasks
         ]
@@ -48,8 +50,8 @@ def save_board(chat_id, board):
 @bot.message_handler(commands=['start'])
 def start_command(message):
     chat_id = message.chat.id
-    # Загружаем доску при старте
     boards[chat_id] = load_board(chat_id)
+    states.enter_default_mode(chat_id)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("Добавить задачу", "Показать доску", "Переместить задачу")
     bot.send_message(chat_id, "Что вы хотите сделать?", reply_markup=markup)
@@ -59,20 +61,17 @@ def show_board_handler(message):
     chat_id = message.chat.id
     if chat_id in boards:
         if chat_id in messages:
-            # Открепляем предыдущее сообщение с изображением
             bot.delete_message(chat_id, messages[chat_id])
-        
-        # Создаём изображение доски
+
         board_image = create_board_image(boards[chat_id])
         messages[chat_id] = bot.send_photo(chat_id, board_image)
-        
-        # Закрепляем новое сообщение
         bot.pin_chat_message(chat_id, messages[chat_id])
-    
+
 @bot.message_handler(func=lambda message: message.text == "Переместить задачу")
 def move_task_command(message):
     chat_id = message.chat.id
     if chat_id in boards:
+        states.enter_move_mode(chat_id)
         columns = list(boards[chat_id].columns.keys())
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         for col in columns:
@@ -83,19 +82,12 @@ def move_task_command(message):
     else:
         bot.send_message(message.chat.id, "Доска для этого чата еще не создана.")
 
-
-        # Создаём изображение доски
-        board_image = create_board_image(boards[chat_id])
-        messages[chat_id] = bot.send_photo(chat_id, board_image)
-        
-        # Закрепляем новое сообщение
-        bot.pin_chat_message(chat_id, messages[chat_id])
-    
 def select_task_from_column(message):
     chat_id = message.chat.id
     column_name = message.text
 
     if column_name == "Отмена":
+        states.exit_move_mode(chat_id)
         bot.send_message(chat_id, "Перемещение задачи отменено.")
         return
 
@@ -104,15 +96,15 @@ def select_task_from_column(message):
         if tasks:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             for task in tasks:
-                markup.add(task.text)  # Используем атрибут text задачи
+                markup.add(task.text)
             markup.add("Назад")
             bot.send_message(chat_id, "Выберите задачу для перемещения:", reply_markup=markup)
             bot.register_next_step_handler(message, lambda msg: select_new_column(msg, column_name))
         else:
-            bot.send_message(chat_id, "В этой колонке нет задач. Пожалуйста, выберите другую колонку.")
+            bot.send_message(chat_id, "В этой колонке нет задач.")
             move_task_command(message)
     else:
-        bot.send_message(chat_id, "Колонка не найдена. Пожалуйста, выберите снова.")
+        bot.send_message(chat_id, "Колонка не найдена.")
         move_task_command(message)
 
 def select_new_column(message, old_column_name):
@@ -123,12 +115,7 @@ def select_new_column(message, old_column_name):
         move_task_command(message)
         return
 
-    task = None
-    for t in boards[chat_id].columns[old_column_name]:
-        if t.text == task_text:
-            task = t
-            break
-
+    task = next((t for t in boards[chat_id].columns[old_column_name] if t.text == task_text), None)
     if task:
         new_columns = list(boards[chat_id].columns.keys())
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -138,7 +125,7 @@ def select_new_column(message, old_column_name):
         bot.send_message(chat_id, "Выберите колонку, в которую хотите переместить задачу:", reply_markup=markup)
         bot.register_next_step_handler(message, lambda msg: move_selected_task(msg, task, old_column_name))
     else:
-        bot.send_message(chat_id, "Задача не найдена. Пожалуйста, попробуйте снова.")
+        bot.send_message(chat_id, "Задача не найдена.")
         move_task_command(message)
 
 def move_selected_task(message, task, old_column_name):
@@ -146,22 +133,23 @@ def move_selected_task(message, task, old_column_name):
     new_column_name = message.text
 
     if new_column_name == "Отмена":
+        states.exit_move_mode(chat_id)
         bot.send_message(chat_id, "Перемещение задачи отменено.")
         return
 
     if new_column_name in boards[chat_id].columns:
         boards[chat_id].move_task(task.id, old_column_name, new_column_name)
-        save_board(chat_id, boards[chat_id])  # Сохраняем после перемещения
-        bot.send_message(chat_id, f"Задача '{task.text}' перемещена из '{old_column_name}' в '{new_column_name}'.")
+        save_board(chat_id, boards[chat_id])
+        bot.send_message(chat_id, f"Задача '{task.text}' перемещена.")
         start_command(message=message)
     else:
         bot.send_message(chat_id, "Ошибка: Неверная колонка.")
 
 @bot.message_handler(func=lambda message: message.text == "Добавить задачу")
-
 def add_task_command(message):
     chat_id = message.chat.id
     if chat_id in boards:
+        states.enter_add_mode(chat_id)
         bot.send_message(chat_id, "Введите текст новой задачи:")
         bot.register_next_step_handler(message, lambda msg: add_task(msg, chat_id))
     else:
@@ -170,5 +158,7 @@ def add_task_command(message):
 def add_task(message, chat_id):
     text = message.text
     boards[chat_id].add_task(text, message.from_user.id)
-    save_board(chat_id, boards[chat_id])  # Сохраняем после добавления задачи
+    save_board(chat_id, boards[chat_id])
+    states.exit_add_mode(chat_id)
     bot.send_message(chat_id, f"Задача '{text}' добавлена.")
+
