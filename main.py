@@ -10,7 +10,6 @@ import os
 bot = telebot.TeleBot(BOT_TOKEN)
 boards = {}
 messages = {}
-user_states = {}
 
 def load_board(chat_id):
     """Загружает доску пользователя из JSON-файла или создает новую, если файла нет."""

@@ -1,9 +1,10 @@
+user_states = {}
 MOVE_MODE = "moving_task"
 DEFAULT_MODE = "default"
-ADD_MODE = = "add_task"
+ADD_MODE = "add_task"
 
 def enter_move_mode(chat_id):
-        user_states[chat_id] = MOVE_MODE
+    user_states[chat_id] = MOVE_MODE
 
 def exit_move_mode(chat_id):
     if chat_id in user_states:
